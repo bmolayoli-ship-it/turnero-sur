@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase, modoOnline } from "./supabaseClient";
+import { ESTADOS, calcularMetricas, pierdeTurno } from "./attendanceUtils";
 import {
   CalendarDays, Users, UserRound, Clock3, BarChart3, Settings, Bell, Plus,
   ChevronLeft, ChevronRight, Calendar, Search, Trash2, HeartPulse, ShieldCheck,
@@ -13,6 +14,40 @@ const lesionesBase = [
 ];
 
 const colores = ["green", "blue", "purple", "red", "orange", "teal"];
+
+const etiquetaEstado = (estado) => {
+  switch (estado) {
+    case ESTADOS.ASISTIO:
+      return "Asistió";
+    case ESTADOS.AVISO:
+      return "Avisó · conserva orden";
+    case ESTADOS.NO_AVISO:
+      return "No avisó · pierde orden";
+    default:
+      return "Pendiente";
+  }
+};
+
+const claseEstado = (estado) => {
+  switch (estado) {
+    case ESTADOS.ASISTIO:
+      return "estado-asistio";
+    case ESTADOS.AVISO:
+      return "estado-aviso";
+    case ESTADOS.NO_AVISO:
+      return "estado-no-aviso";
+    default:
+      return "estado-pendiente";
+  }
+};
+
+const textoOrden = (estado) => {
+  if (estado === ESTADOS.ASISTIO) return "Orden usada";
+  if (estado === ESTADOS.AVISO) return "Conserva orden";
+  if (pierdeTurno(estado)) return "Pierde orden";
+  return "Orden pendiente";
+};
+
 
 const configInicial = {
   horariosManana: ["08:00", "09:00", "10:00", "11:00", "12:00"],
@@ -131,7 +166,7 @@ export default function App() {
           profesionalId: t.profesional_id, profesional: t.profesional,
           pacienteId: t.paciente_id, paciente: t.paciente, dni: t.dni || "",
           telefono: t.telefono || "", obraSocial: t.obra_social || "",
-          lesion: t.lesion || "", notas: t.notas || "", estado: t.estado || "Confirmado",
+          lesion: t.lesion || "", notas: t.notas || "", estado: t.estado || "pendiente",
           color: t.color || "teal"
         })));
       }
@@ -165,7 +200,16 @@ export default function App() {
       porLesion[t.lesion || "Sin lesión"] = (porLesion[t.lesion || "Sin lesión"] || 0) + 1;
       porProfesional[t.profesional || "Sin profesional"] = (porProfesional[t.profesional || "Sin profesional"] || 0) + 1;
     });
-    return { porLesion, porProfesional, total: turnos.length, pacientes: pacientes.length };
+
+    const asistencia = calcularMetricas(turnos);
+
+    return {
+      porLesion,
+      porProfesional,
+      total: turnos.length,
+      pacientes: pacientes.length,
+      asistencia
+    };
   }, [turnos, pacientes]);
 
   const turnosEnHora = (hora) => turnosDia.filter(t => t.hora === hora);
@@ -269,7 +313,7 @@ export default function App() {
       obraSocial: pacienteFinal?.obraSocial || data.get("obraSocial").trim(),
       lesion: data.get("lesion") || pacienteFinal?.lesion || "Sesión kinesiológica",
       notas: data.get("notas").trim(),
-      estado: "Confirmado",
+      estado: "pendiente",
       color: colores[turnos.length % colores.length]
     };
 
@@ -293,6 +337,54 @@ export default function App() {
     if (supabase) await supabase.from("turnos").delete().eq("id", id);
     setTurnos(turnos.filter(t => t.id !== id));
   };
+
+  const actualizarEstadoTurno = async (id, nuevoEstado) => {
+    const turnoActual = turnos.find(t => t.id === id);
+    if (!turnoActual) return;
+
+    const actualizados = turnos.map(t =>
+      t.id === id ? { ...t, estado: nuevoEstado } : t
+    );
+    setTurnos(actualizados);
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("turnos")
+        .update({ estado: nuevoEstado })
+        .eq("id", id);
+
+      if (error) {
+        alert("No se pudo actualizar el estado. Revisá permisos de Supabase.");
+        setTurnos(turnos);
+      }
+    }
+  };
+
+  const BotonesAsistencia = ({ turno }) => (
+    <div className="attendance-actions">
+      <button
+        className={turno.estado === ESTADOS.ASISTIO ? "activo ok" : "ok"}
+        onClick={() => actualizarEstadoTurno(turno.id, ESTADOS.ASISTIO)}
+        type="button"
+      >
+        ✓ Asistió
+      </button>
+      <button
+        className={turno.estado === ESTADOS.AVISO ? "activo warn" : "warn"}
+        onClick={() => actualizarEstadoTurno(turno.id, ESTADOS.AVISO)}
+        type="button"
+      >
+        Avisó
+      </button>
+      <button
+        className={turno.estado === ESTADOS.NO_AVISO ? "activo bad" : "bad"}
+        onClick={() => actualizarEstadoTurno(turno.id, ESTADOS.NO_AVISO)}
+        type="button"
+      >
+        No avisó
+      </button>
+    </div>
+  );
 
   const agregarHorario = () => {
     if (!nuevoHorario.hora) return;
@@ -333,8 +425,10 @@ export default function App() {
                 <strong>{t.paciente}</strong>
                 <small>{t.lesion}</small>
                 <em>{hora} - {horaFin(hora, config.duracionTurno)} · {t.telefono || "Sin teléfono"}</em>
+                <span className={`estado-chip ${claseEstado(t.estado)}`}>{etiquetaEstado(t.estado)}</span>
+                <span className="orden-chip">{textoOrden(t.estado)}</span>
+                <BotonesAsistencia turno={t} />
               </div>
-              <b>{t.estado}</b>
               <button className="delete" onClick={() => cancelarTurno(t.id)}><Trash2 size={15}/></button>
             </div>
           ))}
@@ -431,11 +525,53 @@ export default function App() {
   const Turnos = () => (
     <section className="module">
       <h2>Turnos</h2><SearchBox/>
-      <div className="table">{turnos.filter(t => `${t.paciente} ${t.profesional} ${t.lesion} ${t.fecha}`.toLowerCase().includes(busqueda.toLowerCase())).map(t => <div className="table-row" key={t.id}><strong>{t.fecha} · {t.hora}</strong><span>{t.paciente}</span><span>{t.profesional}</span><b>{t.lesion}</b><button onClick={()=>cancelarTurno(t.id)}>Cancelar</button></div>)}</div>
+      <div className="table">
+        {turnos
+          .filter(t => `${t.paciente} ${t.profesional} ${t.lesion} ${t.fecha} ${t.estado}`.toLowerCase().includes(busqueda.toLowerCase()))
+          .map(t => (
+            <div className="table-row asistencia-row" key={t.id}>
+              <strong>{t.fecha} · {t.hora}</strong>
+              <span>{t.paciente}</span>
+              <span>{t.profesional}</span>
+              <b>{t.lesion}</b>
+              <div>
+                <span className={`estado-chip ${claseEstado(t.estado)}`}>{etiquetaEstado(t.estado)}</span>
+                <small className="orden-mini">{textoOrden(t.estado)}</small>
+              </div>
+              <BotonesAsistencia turno={t} />
+              <button onClick={()=>cancelarTurno(t.id)}>Cancelar</button>
+            </div>
+          ))}
+      </div>
     </section>
   );
 
-  const Estadisticas = () => <section className="module"><h2>Estadísticas</h2><div className="stats-grid"><div className="stat-card"><span>Total turnos</span><b>{estadisticas.total}</b></div><div className="stat-card"><span>Pacientes</span><b>{estadisticas.pacientes}</b></div><div className="stat-card"><span>Profesionales</span><b>{profesionales.length}</b></div><div className="stat-card"><span>Máx. pacientes/hora</span><b>{config.maxPorHora}</b></div></div><h3>Por lesión / rehabilitación</h3><Bars data={estadisticas.porLesion}/><h3>Por profesional</h3><Bars data={estadisticas.porProfesional}/></section>;
+  const Estadisticas = () => (
+    <section className="module">
+      <h2>Estadísticas</h2>
+
+      <div className="stats-grid">
+        <div className="stat-card"><span>Total turnos</span><b>{estadisticas.total}</b></div>
+        <div className="stat-card"><span>Pacientes</span><b>{estadisticas.pacientes}</b></div>
+        <div className="stat-card"><span>Profesionales</span><b>{profesionales.length}</b></div>
+        <div className="stat-card"><span>Máx. pacientes/horario</span><b>{config.maxPorHora}</b></div>
+      </div>
+
+      <h3>Asistencia y órdenes</h3>
+      <div className="stats-grid">
+        <div className="stat-card asist-ok"><span>Asistieron</span><b>{estadisticas.asistencia.asistieron}</b></div>
+        <div className="stat-card asist-warn"><span>No asistió con aviso</span><b>{estadisticas.asistencia.avisaron}</b><small>Conserva orden</small></div>
+        <div className="stat-card asist-bad"><span>No asistió sin aviso</span><b>{estadisticas.asistencia.noAvisaron}</b><small>Pierde orden</small></div>
+        <div className="stat-card"><span>% asistencia</span><b>{Number(estadisticas.asistencia.porcentajeAsistencia).toFixed(1)}%</b></div>
+      </div>
+
+      <h3>Por lesión / rehabilitación</h3>
+      <Bars data={estadisticas.porLesion}/>
+
+      <h3>Por profesional</h3>
+      <Bars data={estadisticas.porProfesional}/>
+    </section>
+  );
 
   const Bars = ({data}) => {
     const entries = Object.entries(data).sort((a,b)=>b[1]-a[1]);
