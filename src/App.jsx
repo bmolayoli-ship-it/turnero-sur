@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState }const [dragTurno, setDragTurno] = useState(null); from "react";
 import { supabase, modoOnline } from "./supabaseClient";
 import { ESTADOS, calcularMetricas, pierdeTurno } from "./attendanceUtils";
 import {
@@ -418,9 +418,49 @@ export default function App() {
     return (
       <div className="time-row">
         <div className="time">{hora}</div>
-        <div className="slot-stack">
+        <div
+  className="slot-stack"
+  onDragOver={(e) => e.preventDefault()}
+  onDrop={async () => {
+    if (!dragTurno) return;
+
+    const actualizado = {
+      ...dragTurno,
+      hora,
+      bloque
+    };
+
+    const nuevos = turnos.map(t =>
+      t.id === dragTurno.id ? actualizado : t
+    );
+
+    setTurnos(nuevos);
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("turnos")
+        .update({
+          hora,
+          bloque
+        })
+        .eq("id", dragTurno.id);
+
+      if (error) {
+        alert("Error moviendo turno");
+        console.error(error);
+      }
+    }
+
+    setDragTurno(null);
+  }}
+>
           {lista.map(t => (
-            <div className={`appointment ${t.color || "teal"}`} key={t.id}>
+            <div
+  className={`appointment ${t.color || "teal"}`}
+  key={t.id}
+  draggable
+  onDragStart={() => setDragTurno(t)}
+>
               <div>
                 <strong>{t.paciente}</strong>
                 <small>{t.lesion}</small>
