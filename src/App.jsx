@@ -2,6 +2,33 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase, modoOnline } from "./supabaseClient";
 import { ESTADOS, calcularMetricas, pierdeTurno } from "./attendanceUtils";
 import {
+ const inicioSemana = (iso) => {
+  const d = new Date(iso + "T12:00:00");
+  const dia = d.getDay();
+  const diff = dia === 0 ? -6 : 1 - dia;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+};
+return (
+    <div className="layout">
+      <aside className="sidebar">
+        <div className="brand"><div className="sur-logo">SUR</div><h2>CENTRO KINESIOLÓGICO</h2><p>Cuidamos tu movimiento</p></div>
+        <nav>
+          <NavItem name="Agenda" icon={CalendarDays}/><NavItem name="Pacientes" icon={Users}/><NavItem name="Profesionales" icon={UserRound}/><NavItem name="Turnos" icon={Clock3}/><NavItem name="Estadísticas" icon={BarChart3}/><NavItem name="Configuración" icon={Settings}/>
+        </nav>
+        <div className="sidebar-card"><CalendarDays size={34}/><div><strong>Turnero</strong><span>{modoOnline ? "Online" : "Local"}</span></div><button onClick={()=>{setVista("Agenda");setFecha(hoyISO())}}>Ir a hoy</button></div>
+
+const diasSemana = (iso) => {
+  const inicio = inicioSemana(iso);
+  return Array.from({ length: 7 }, (_, i) => sumarDias(inicio, i));
+};
+
+const nombreDiaCorto = (iso) =>
+  new Date(iso + "T12:00:00").toLocaleDateString("es-AR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit"
+  });
   CalendarDays, Users, UserRound, Clock3, BarChart3, Settings, Bell, Plus,
   ChevronLeft, ChevronRight, Calendar, Search, Trash2, HeartPulse, ShieldCheck,
   Star, Wifi, WifiOff, Save
@@ -620,33 +647,7 @@ export default function App() {
       <div className="inline-add"><input value={nuevaLesion} onChange={e=>setNuevaLesion(e.target.value)} placeholder="Nueva lesión o rehabilitación"/><button onClick={agregarLesion}>Agregar</button></div>
     </section>
   );
- const inicioSemana = (iso) => {
-  const d = new Date(iso + "T12:00:00");
-  const dia = d.getDay();
-  const diff = dia === 0 ? -6 : 1 - dia;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
-};
-return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="brand"><div className="sur-logo">SUR</div><h2>CENTRO KINESIOLÓGICO</h2><p>Cuidamos tu movimiento</p></div>
-        <nav>
-          <NavItem name="Agenda" icon={CalendarDays}/><NavItem name="Pacientes" icon={Users}/><NavItem name="Profesionales" icon={UserRound}/><NavItem name="Turnos" icon={Clock3}/><NavItem name="Estadísticas" icon={BarChart3}/><NavItem name="Configuración" icon={Settings}/>
-        </nav>
-        <div className="sidebar-card"><CalendarDays size={34}/><div><strong>Turnero</strong><span>{modoOnline ? "Online" : "Local"}</span></div><button onClick={()=>{setVista("Agenda");setFecha(hoyISO())}}>Ir a hoy</button></div>
 
-const diasSemana = (iso) => {
-  const inicio = inicioSemana(iso);
-  return Array.from({ length: 7 }, (_, i) => sumarDias(inicio, i));
-};
-
-const nombreDiaCorto = (iso) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("es-AR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit"
-  });
   const SearchBox = () => <div className="search"><Search size={17}/><input placeholder="Buscar..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/></div>;
 
  
