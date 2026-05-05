@@ -623,7 +623,14 @@ export default function App() {
 
   const SearchBox = () => <div className="search"><Search size={17}/><input placeholder="Buscar..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/></div>;
 
-  return (
+  const inicioSemana = (iso) => {
+  const d = new Date(iso + "T12:00:00");
+  const dia = d.getDay();
+  const diff = dia === 0 ? -6 : 1 - dia;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+};
+return (
     <div className="layout">
       <aside className="sidebar">
         <div className="brand"><div className="sur-logo">SUR</div><h2>CENTRO KINESIOLÓGICO</h2><p>Cuidamos tu movimiento</p></div>
@@ -631,13 +638,6 @@ export default function App() {
           <NavItem name="Agenda" icon={CalendarDays}/><NavItem name="Pacientes" icon={Users}/><NavItem name="Profesionales" icon={UserRound}/><NavItem name="Turnos" icon={Clock3}/><NavItem name="Estadísticas" icon={BarChart3}/><NavItem name="Configuración" icon={Settings}/>
         </nav>
         <div className="sidebar-card"><CalendarDays size={34}/><div><strong>Turnero</strong><span>{modoOnline ? "Online" : "Local"}</span></div><button onClick={()=>{setVista("Agenda");setFecha(hoyISO())}}>Ir a hoy</button></div>
-const inicioSemana = (iso) => {
-  const d = new Date(iso + "T12:00:00");
-  const dia = d.getDay();
-  const diff = dia === 0 ? -6 : 1 - dia;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
-};
 
 const diasSemana = (iso) => {
   const inicio = inicioSemana(iso);
