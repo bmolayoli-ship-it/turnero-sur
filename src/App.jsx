@@ -620,10 +620,7 @@ export default function App() {
       <div className="inline-add"><input value={nuevaLesion} onChange={e=>setNuevaLesion(e.target.value)} placeholder="Nueva lesión o rehabilitación"/><button onClick={agregarLesion}>Agregar</button></div>
     </section>
   );
-
-  const SearchBox = () => <div className="search"><Search size={17}/><input placeholder="Buscar..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/></div>;
-
-  const inicioSemana = (iso) => {
+ const inicioSemana = (iso) => {
   const d = new Date(iso + "T12:00:00");
   const dia = d.getDay();
   const diff = dia === 0 ? -6 : 1 - dia;
@@ -650,6 +647,9 @@ const nombreDiaCorto = (iso) =>
     day: "2-digit",
     month: "2-digit"
   });
+  const SearchBox = () => <div className="search"><Search size={17}/><input placeholder="Buscar..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/></div>;
+
+ 
 ```
 
 ---
