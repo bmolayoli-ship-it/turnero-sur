@@ -630,7 +630,7 @@ export default function App() {
         <nav>
           <NavItem name="Agenda" icon={CalendarDays}/><NavItem name="Pacientes" icon={Users}/><NavItem name="Profesionales" icon={UserRound}/><NavItem name="Turnos" icon={Clock3}/><NavItem name="Estadísticas" icon={BarChart3}/><NavItem name="Configuración" icon={Settings}/>
         </nav>
-        <div className="sidebar-card"><CalendarDays size={34}/><div><strong>Turnero</strong><span>{modoOnline ? "Online" : "Local"}</span></div><button onClick={()=>{setVista("Agenda");setFecha(hoyISO())}}>Ir a hoy</button></div>```js
+        <div className="sidebar-card"><CalendarDays size={34}/><div><strong>Turnero</strong><span>{modoOnline ? "Online" : "Local"}</span></div><button onClick={()=>{setVista("Agenda");setFecha(hoyISO())}}>Ir a hoy</button></div>
 const inicioSemana = (iso) => {
   const d = new Date(iso + "T12:00:00");
   const dia = d.getDay();
