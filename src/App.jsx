@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState }const [dragTurno, setDragTurno] = useState(null); from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase, modoOnline } from "./supabaseClient";
 import { ESTADOS, calcularMetricas, pierdeTurno } from "./attendanceUtils";
 import {
@@ -318,15 +318,31 @@ export default function App() {
     };
 
     if (supabase) {
-      const { data: saved, error } = await supabase.from("turnos").insert({
-        fecha: turno.fecha, hora: turno.hora, bloque: turno.bloque,
-        profesional_id: turno.profesionalId, profesional: turno.profesional,
-        paciente_id: turno.pacienteId || null, paciente: turno.paciente, dni: turno.dni,
-        telefono: turno.telefono, obra_social: turno.obraSocial, lesion: turno.lesion,
-        notas: turno.notas, estado: turno.estado, color: turno.color
-      }).select().single();
-      if (!error && saved) turno.id = saved.id;
-    }
+  const { data: saved, error } = await supabase.from("turnos").insert({
+    fecha: turno.fecha,
+    hora: turno.hora,
+    bloque: turno.bloque,
+    profesional_id: turno.profesionalId,
+    profesional: turno.profesional,
+    paciente_id: turno.pacienteId || null,
+    paciente: turno.paciente,
+    dni: turno.dni,
+    telefono: turno.telefono,
+    obra_social: turno.obraSocial,
+    lesion: turno.lesion,
+    notas: turno.notas,
+    estado: turno.estado,
+    color: turno.color
+  }).select().single();
+
+  if (error) {
+    alert("Error Supabase: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  if (saved) turno.id = saved.id;
+}
 
     setTurnos([...turnos, turno]);
     setModalTurno(null);
@@ -418,49 +434,9 @@ export default function App() {
     return (
       <div className="time-row">
         <div className="time">{hora}</div>
-        <div
-  className="slot-stack"
-  onDragOver={(e) => e.preventDefault()}
-  onDrop={async () => {
-    if (!dragTurno) return;
-
-    const actualizado = {
-      ...dragTurno,
-      hora,
-      bloque
-    };
-
-    const nuevos = turnos.map(t =>
-      t.id === dragTurno.id ? actualizado : t
-    );
-
-    setTurnos(nuevos);
-
-    if (supabase) {
-      const { error } = await supabase
-        .from("turnos")
-        .update({
-          hora,
-          bloque
-        })
-        .eq("id", dragTurno.id);
-
-      if (error) {
-        alert("Error moviendo turno");
-        console.error(error);
-      }
-    }
-
-    setDragTurno(null);
-  }}
->
+        <div className="slot-stack">
           {lista.map(t => (
-            <div
-  className={`appointment ${t.color || "teal"}`}
-  key={t.id}
-  draggable
-  onDragStart={() => setDragTurno(t)}
->
+            <div className={`appointment ${t.color || "teal"}`} key={t.id}>
               <div>
                 <strong>{t.paciente}</strong>
                 <small>{t.lesion}</small>
@@ -492,6 +468,7 @@ export default function App() {
           <button onClick={() => setFecha(sumarDias(fecha, 1))}><ChevronRight size={18}/></button>
           <input type="date" value={fecha} onChange={e => setFecha(e.target.value)}/>
           <button onClick={() => setFecha(hoyISO())}>Hoy</button>
+
           <select value={profActual?.id || ""} onChange={e => setProfId(e.target.value)}>
             {profesionales.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
@@ -653,7 +630,284 @@ export default function App() {
         <nav>
           <NavItem name="Agenda" icon={CalendarDays}/><NavItem name="Pacientes" icon={Users}/><NavItem name="Profesionales" icon={UserRound}/><NavItem name="Turnos" icon={Clock3}/><NavItem name="Estadísticas" icon={BarChart3}/><NavItem name="Configuración" icon={Settings}/>
         </nav>
-        <div className="sidebar-card"><CalendarDays size={34}/><div><strong>Turnero</strong><span>{modoOnline ? "Online" : "Local"}</span></div><button onClick={()=>{setVista("Agenda");setFecha(hoyISO())}}>Ir a hoy</button></div>
+        <div className="sidebar-card"><CalendarDays size={34}/><div><strong>Turnero</strong><span>{modoOnline ? "Online" : "Local"}</span></div><button onClick={()=>{setVista("Agenda");setFecha(hoyISO())}}>Ir a hoy</button></div>```js
+const inicioSemana = (iso) => {
+  const d = new Date(iso + "T12:00:00");
+  const dia = d.getDay();
+  const diff = dia === 0 ? -6 : 1 - dia;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+};
+
+const diasSemana = (iso) => {
+  const inicio = inicioSemana(iso);
+  return Array.from({ length: 7 }, (_, i) => sumarDias(inicio, i));
+};
+
+const nombreDiaCorto = (iso) =>
+  new Date(iso + "T12:00:00").toLocaleDateString("es-AR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit"
+  });
+```
+
+---
+
+## 2) Agregar estado
+
+Junto a tus useState principales:
+
+```js
+const [modoAgenda, setModoAgenda] = useState("dia");
+```
+
+---
+
+## 3) Agregar componente Semana dentro de App()
+
+Pegarlo antes del componente `Agenda`.
+
+```jsx
+const Semana = () => {
+  const dias = diasSemana(fecha);
+  const horarios = [...horariosManana, ...horariosTarde];
+
+  const turnosPorDiaHora = (dia, hora) =>
+    turnos.filter(
+      t =>
+        t.fecha === dia &&
+        t.hora === hora &&
+        t.profesionalId === profActual?.id
+    );
+
+  return (
+    <section className="semana-card">
+      <div className="semana-header">
+        <button onClick={() => setFecha(sumarDias(fecha, -7))}>← Semana anterior</button>
+        <strong>
+          Semana del {fechaLarga(dias[0])} al {fechaLarga(dias[6])}
+        </strong>
+        <button onClick={() => setFecha(sumarDias(fecha, 7))}>Semana siguiente →</button>
+      </div>
+
+      <div className="semana-grid">
+        <div className="semana-hora titulo">Hora</div>
+
+        {dias.map(dia => (
+          <div
+            key={dia}
+            className={`semana-dia titulo ${dia === fecha ? "seleccionado" : ""}`}
+            onClick={() => setFecha(dia)}
+          >
+            {nombreDiaCorto(dia)}
+          </div>
+        ))}
+
+        {horarios.map(hora => (
+          <React.Fragment key={hora}>
+            <div className="semana-hora">{hora}</div>
+
+            {dias.map(dia => {
+              const lista = turnosPorDiaHora(dia, hora);
+
+              return (
+                <div
+                  key={`${dia}-${hora}`}
+                  className="semana-slot"
+                  onDoubleClick={() => {
+                    setFecha(dia);
+                    setModalTurno({
+                      hora,
+                      bloque: horariosManana.includes(hora) ? "Mañana" : "Tarde"
+                    });
+                  }}
+                >
+                  {lista.length === 0 ? (
+                    <span className="semana-vacio">Disponible</span>
+                  ) : (
+                    lista.map(t => (
+                      <div className={`semana-turno ${t.color || "teal"}`} key={t.id}>
+                        <strong>{t.paciente}</strong>
+                        <small>{t.lesion}</small>
+                        <em>{t.estado || "pendiente"}</em>
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+    </section>
+  );
+};
+```
+
+---
+
+## 4) Agregar botones Día / Semana
+
+Dentro del header de `Agenda`, en los controles, agregá:
+
+```jsx
+<div className="vista-switch">
+  <button
+    className={modoAgenda === "dia" ? "activo" : ""}
+    onClick={() => setModoAgenda("dia")}
+  >
+    Día
+  </button>
+  <button
+    className={modoAgenda === "semana" ? "activo" : ""}
+    onClick={() => setModoAgenda("semana")}
+  >
+    Semana
+  </button>
+</div>
+```
+
+---
+
+## 5) Cambiar render de Agenda
+
+Dentro de `Agenda`, después del encabezado, usá:
+
+```jsx
+{modoAgenda === "semana" ? (
+  <Semana />
+) : (
+  <div className="main-grid">
+    {/* acá va lo que ya tenías: agenda diaria + RightBar */}
+  </div>
+)}
+```
+
+No borres tu agenda diaria. Solo ponela dentro del bloque `else`.
+
+---
+
+## 6) Agregar estilos al final de src/styles.css
+
+```css
+/* === Vista semanal === */
+
+.vista-switch {
+  display: flex;
+  gap: 6px;
+  background: #eef6f8;
+  padding: 5px;
+  border-radius: 999px;
+}
+
+.vista-switch button {
+  border: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-weight: 900;
+  background: transparent;
+  cursor: pointer;
+  color: #345;
+}
+
+.vista-switch button.activo {
+  background: #08b8c5;
+  color: white;
+}
+
+.semana-card {
+  background: white;
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid #e4edf3;
+  box-shadow: 0 12px 35px rgba(5,28,55,.08);
+  overflow-x: auto;
+}
+
+.semana-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.semana-header button {
+  border: 0;
+  background: #e7fbfc;
+  color: #078fa0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.semana-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, minmax(170px, 1fr));
+  gap: 8px;
+  min-width: 1250px;
+}
+
+.semana-hora,
+.semana-dia {
+  background: #f1f7fa;
+  border-radius: 12px;
+  padding: 10px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.semana-dia {
+  cursor: pointer;
+}
+
+.semana-dia.seleccionado {
+  background: #08b8c5;
+  color: white;
+}
+
+.semana-slot {
+  min-height: 105px;
+  background: #fbfdff;
+  border: 1px dashed #c7d7e2;
+  border-radius: 14px;
+  padding: 8px;
+}
+
+.semana-vacio {
+  color: #8a9aaa;
+  font-size: 13px;
+}
+
+.semana-turno {
+  border-radius: 12px;
+  padding: 9px;
+  margin-bottom: 6px;
+  border: 1px solid #dbe6ef;
+}
+
+.semana-turno strong,
+.semana-turno small,
+.semana-turno em {
+  display: block;
+}
+
+.semana-turno small {
+  color: #40556b;
+}
+
+.semana-turno em {
+  margin-top: 5px;
+  font-style: normal;
+  font-size: 11px;
+  color: #66758a;
+}
+```
+
+---
+
       </aside>
 
       <main className="content">
