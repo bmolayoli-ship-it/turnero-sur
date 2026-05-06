@@ -1,8 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+ import React, { useEffect, useMemo, useState } from "react";
 import { supabase, modoOnline } from "./supabaseClient";
 import { ESTADOS, calcularMetricas, pierdeTurno } from "./attendanceUtils";
 import {
- const inicioSemana = (iso) => {
+  CalendarDays, Users, UserRound, Clock3, BarChart3, Settings, Bell, Plus,
+  ChevronLeft, ChevronRight, Calendar, Search, Trash2, HeartPulse, ShieldCheck,
+  Star, Wifi, WifiOff, Save
+} from "lucide-react";
+
+const inicioSemana = (iso) => {
   const d = new Date(iso + "T12:00:00");
   const dia = d.getDay();
   const diff = dia === 0 ? -6 : 1 - dia;
